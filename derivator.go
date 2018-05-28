@@ -53,15 +53,11 @@ func convolute(imgMat, filter *mat.Dense) *mat.Dense {
 }
 
 // GetFirstDerivative -
-func GetFirstDerivative(img gocv.Mat) *mat.Dense {
+func GetFirstDerivative(img gocv.Mat) (*mat.Dense, *mat.Dense) {
 	gocv.GaussianBlur(img, img, image.Point{blurSize, blurSize}, math.Floor(blurSize/2.0), math.Floor(blurSize/2.0), gocv.BorderReflect)
 
 	imgMat := GetNumMat(img)
 
-	convX := convolute(imgMat, fdxMetrix)
-	convY := convolute(imgMat, fdyMetrix)
+	return convolute(imgMat, fdxMetrix), convolute(imgMat, fdyMetrix)
 
-	convX.Add(convX, convY)
-
-	return convX
 }

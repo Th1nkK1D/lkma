@@ -4,13 +4,16 @@ import (
 	"gocv.io/x/gocv"
 )
 
-const imgPath = "dog_sm.jpg"
-const scbPath = "dog_sm_scrb.jpg"
+const imgPath = "dog.jpg"
+const scbPath = "dog_scrb.jpg"
 
 func main() {
 	img := gocv.IMRead(imgPath, gocv.IMReadGrayScale)
 
-	fd := GetFirstDerivative(img)
+	gocv.IMWrite("gs-out.jpg", img)
 
-	gocv.IMWrite("fd-out.jpg", GetCVMat(fd))
+	fdx, fdy := GetFirstDerivative(img)
+
+	gocv.IMWrite("fdx-out.jpg", GetCVMat(fdx))
+	gocv.IMWrite("fdy-out.jpg", GetCVMat(fdy))
 }
