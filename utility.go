@@ -29,7 +29,7 @@ func GetCVMat(imgMat *mat.Dense) gocv.Mat {
 
 	for r := 0; r < nR; r++ {
 		for c := 0; c < nC; c++ {
-			bytes[i] = byte(imgMat.At(r, c) * 256 / max)
+			bytes[i] = byte(imgMat.At(r, c) * 255 / max)
 			i++
 		}
 	}
