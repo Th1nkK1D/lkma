@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+
 	"gocv.io/x/gocv"
+	"gonum.org/v1/gonum/mat"
 )
 
 const imgPath = "dog.jpg"
@@ -17,11 +20,20 @@ func main() {
 
 	fdx, fdy := GetFirstDerivative(img)
 
-	gocv.IMWrite("fdx-out.jpg", GetCVMat(fdx))
-	gocv.IMWrite("fdy-out.jpg", GetCVMat(fdy))
+	// gocv.IMWrite("fdx-out.jpg", GetCVMat(fdx))
+	// gocv.IMWrite("fdy-out.jpg", GetCVMat(fdy))
 
 	FG, BG := ExtractScribble(GetNumMat(scrb))
 
+	fmt.Println(mat.Sum(FG))
+
+	StartRaining(FG, fdx, fdy)
+
+	fmt.Println(FG)
+
+	fmt.Println(mat.Sum(FG))
+
 	gocv.IMWrite("scrb-fg-out.jpg", GetCVMat(FG))
 	gocv.IMWrite("scrb-bg-out.jpg", GetCVMat(BG))
+
 }
