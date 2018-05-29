@@ -6,34 +6,47 @@ import (
 )
 
 // GetNumMat - get image gonum matrix
-func GetNumMat(img gocv.Mat) *mat.Dense {
+func GetNumMat(img gocv.Mat) ColorMat {
 	bytes := img.ToBytes()
+	nPixel := img.Cols() * img.Rows()
+	chs := img.Channels()
 
-	floats := make([]float64, len(bytes))
+	floats := make([][]float64, chs)
+	mats := make(ColorMat, chs)
 
-	for i, b := range bytes {
-		floats[i] = float64(b)
+	for f := range floats {
+		floats[f] = make([]float64, nPixel)
 	}
 
-	return mat.NewDense(img.Rows(), img.Cols(), floats)
+	for i, b := range bytes {
+		floats[i%chs][i/chs] = float64(b)
+	}
+
+	for m := range mats {
+		mats[m] = mat.NewDense(img.Rows(), img.Cols(), floats[m])
+	}
+
+	return mats
 }
 
 // GetCVMat -
-func GetCVMat(imgMat *mat.Dense) gocv.Mat {
-	nR, nC := imgMat.Dims()
-	bytes := make([]byte, nR*nC)
-
-	max := mat.Max(imgMat)
+func GetCVMat(mats ColorMat) gocv.Mat {
+	nR, nC := mats[0].Dims()
+	bytes := make([]byte, nR*nC*len(mats))
 
 	i := 0
 
 	for r := 0; r < nR; r++ {
 		for c := 0; c < nC; c++ {
-			bytes[i] = byte(imgMat.At(r, c) * 255 / max)
-			// fmt.Printf("%v -> %v\n", imgMat.At(r, c), bytes[i])
-			i++
+			for m := range mats {
+				bytes[i] = byte(mats[m].At(r, c))
+				// fmt.Printf("%v -> %v\n", imgMat.At(r, c), bytes[i])
+				i++
+			}
 		}
 	}
 
-	return gocv.NewMatFromBytes(nR, nC, gocv.MatTypeCV8U, bytes)
+	newMat, _ := gocv.NewMatFromBytes(nR, nC, gocv.MatChannels3, bytes)
+
+	return newMat
 }

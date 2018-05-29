@@ -7,33 +7,20 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
-const imgPath = "dog.jpg"
-const scrbPath = "dog_scrb.jpg"
+const imgPath = "cat.jpg"
+const scrbPath = "cat_scrb.jpg"
 
 func main() {
-	img := gocv.IMRead(imgPath, gocv.IMReadGrayScale)
-	scrb := gocv.IMRead(scrbPath, gocv.IMReadGrayScale)
+	img := gocv.IMRead(imgPath, gocv.IMReadColor)
+	// scrb := gocv.IMRead(scrbPath, gocv.IMReadGrayScale)
 
-	gocv.IMWrite("gs-out.jpg", img)
+	mats := GetNumMat(img)
+	fmt.Println(len(mats))
 
-	// I := GetNumMat(img)
+	for i := range mats {
+		fmt.Println(mat.Sum(mats[i]))
+	}
 
-	fdx, fdy := GetFirstDerivative(img)
-
-	// gocv.IMWrite("fdx-out.jpg", GetCVMat(fdx))
-	// gocv.IMWrite("fdy-out.jpg", GetCVMat(fdy))
-
-	FG, BG := ExtractScribble(GetNumMat(scrb))
-
-	fmt.Println(mat.Sum(FG))
-
-	StartRaining(FG, fdx, fdy)
-
-	fmt.Println(FG)
-
-	fmt.Println(mat.Sum(FG))
-
-	gocv.IMWrite("scrb-fg-out.jpg", GetCVMat(FG))
-	gocv.IMWrite("scrb-bg-out.jpg", GetCVMat(BG))
+	gocv.IMWrite("test-out.jpg", GetCVMat(mats))
 
 }
