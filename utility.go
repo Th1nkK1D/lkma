@@ -30,7 +30,7 @@ func GetNumMat(img gocv.Mat) ColorMat {
 }
 
 // GetCVMat -
-func GetCVMat(mats ColorMat) gocv.Mat {
+func GetCVMat(mats ColorMat, matType gocv.MatType) gocv.Mat {
 	nR, nC := mats[0].Dims()
 	bytes := make([]byte, nR*nC*len(mats))
 
@@ -46,7 +46,7 @@ func GetCVMat(mats ColorMat) gocv.Mat {
 		}
 	}
 
-	newMat, _ := gocv.NewMatFromBytes(nR, nC, gocv.MatChannels3, bytes)
+	newMat, _ := gocv.NewMatFromBytes(nR, nC, matType, bytes)
 
 	return newMat
 }

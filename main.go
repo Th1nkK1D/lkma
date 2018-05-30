@@ -12,15 +12,23 @@ const scrbPath = "cat_scrb.jpg"
 
 func main() {
 	img := gocv.IMRead(imgPath, gocv.IMReadColor)
-	// scrb := gocv.IMRead(scrbPath, gocv.IMReadGrayScale)
+	scrb := gocv.IMRead(scrbPath, gocv.IMReadGrayScale)
 
-	mats := GetNumMat(img)
-	fmt.Println(len(mats))
+	imgMats := GetNumMat(img)
+	fmt.Println(len(imgMats))
 
-	for i := range mats {
-		fmt.Println(mat.Sum(mats[i]))
+	for i := range imgMats {
+		fmt.Println(mat.Sum(imgMats[i]))
 	}
 
-	gocv.IMWrite("test-out.jpg", GetCVMat(mats))
+	scrbMats := GetNumMat(scrb)
+	fmt.Println(len(scrbMats))
+
+	for i := range scrbMats {
+		fmt.Println(mat.Sum(scrbMats[i]))
+	}
+
+	gocv.IMWrite("scrb-out.jpg", GetCVMat(scrbMats, gocv.MatChannels1))
+	gocv.IMWrite("test-out.jpg", GetCVMat(imgMats, gocv.MatChannels3))
 
 }
