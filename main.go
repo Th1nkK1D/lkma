@@ -28,7 +28,12 @@ func main() {
 		fmt.Println(mat.Sum(scrbMats[i]))
 	}
 
-	gocv.IMWrite("scrb-out.jpg", GetCVMat(scrbMats, gocv.MatChannels1))
-	gocv.IMWrite("test-out.jpg", GetCVMat(imgMats, gocv.MatChannels3))
+	FG, BG, Alp, _ := ExtractScribble(imgMats, scrbMats)
+
+	gocv.IMWrite("out-fg.jpg", GetCVMat(FG, gocv.MatChannels3))
+	gocv.IMWrite("out-bg.jpg", GetCVMat(BG, gocv.MatChannels3))
+	gocv.IMWrite("out-alp.jpg", GetCVMat(Alp, gocv.MatChannels1))
+
+	// fmt.Println(ScrbMask)
 
 }
