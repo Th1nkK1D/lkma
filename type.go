@@ -13,3 +13,6 @@ type NeighborLog struct {
 	j    int
 	dist float64
 }
+
+// FloatMat -
+type FloatMat [][]float64

@@ -1,13 +1,15 @@
 package main
 
 import (
+	"math"
+
 	"gocv.io/x/gocv"
 	"gonum.org/v1/gonum/mat"
 )
 
-// GetBlankDatas -
-func GetBlankFloats(r, c, chs int) [][]float64 {
-	floats := make([][]float64, chs)
+// GetBlankFloats -
+func GetBlankFloats(r, c, chs int) FloatMat {
+	floats := make(FloatMat, chs)
 
 	for f := range floats {
 		floats[f] = make([]float64, r*c)
@@ -17,7 +19,7 @@ func GetBlankFloats(r, c, chs int) [][]float64 {
 }
 
 // NewColorMat -
-func NewColorMat(r, c, chs int, datas [][]float64) ColorMat {
+func NewColorMat(r, c, chs int, datas FloatMat) ColorMat {
 	mats := make(ColorMat, chs)
 
 	for m := range mats {
@@ -33,7 +35,7 @@ func GetNumMat(img gocv.Mat) ColorMat {
 	nPixel := img.Cols() * img.Rows()
 	chs := img.Channels()
 
-	floats := make([][]float64, chs)
+	floats := make(FloatMat, chs)
 
 	for f := range floats {
 		floats[f] = make([]float64, nPixel)
@@ -74,4 +76,16 @@ func CloneColorMatPixel(dst, src ColorMat, i, j int) {
 	for c := 0; c < chs; c++ {
 		dst[c].Set(i, j, src[c].At(i, j))
 	}
+}
+
+// GetColorDistance -
+func GetColorDistance(I ColorMat, ai, aj, bi, bj int) float64 {
+	sum := 0.0
+	chs := len(I)
+
+	for c := 0; c < chs; c++ {
+		sum += math.Pow(I[c].At(ai, aj)-I[c].At(bi, bj), 2)
+	}
+
+	return math.Sqrt(sum)
 }

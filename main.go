@@ -14,23 +14,29 @@ func main() {
 	img := gocv.IMRead(imgPath, gocv.IMReadColor)
 	scrb := gocv.IMRead(scrbPath, gocv.IMReadGrayScale)
 
-	imgMats := GetNumMat(img)
+	I := GetNumMat(img)
 
 	scrbMats := GetNumMat(scrb)
 
 	fmt.Println("Extracting scribble...")
 
-	FG, BG, Alp, scrbMask := ExtractScribble(imgMats, scrbMats)
+	FG, BG, A, S := ExtractScribble(I, scrbMats)
 
 	gocv.IMWrite("out-fg.jpg", GetCVMat(FG, gocv.MatChannels3))
 	gocv.IMWrite("out-bg.jpg", GetCVMat(BG, gocv.MatChannels3))
-	gocv.IMWrite("out-alp.jpg", GetCVMat(Alp, gocv.MatChannels1))
+	gocv.IMWrite("out-alp.jpg", GetCVMat(A, gocv.MatChannels1))
 
 	fmt.Println("Exploring neighbor...")
 
-	nFG, nBG := ExploreNeighbor(scrbMask)
+	nFG, nBG := ExploreNeighbor(S)
 
 	gocv.IMWrite("out-nfg.jpg", SaveNeighborLog(nFG))
 	gocv.IMWrite("out-nbg.jpg", SaveNeighborLog(nBG))
+
+	_, e, tStart := GetInitEnergy(I, FG, BG, A, S, nFG, nBG)
+
+	// fmt.Println(E)
+	fmt.Println(e)
+	fmt.Println(tStart)
 
 }
