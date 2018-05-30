@@ -1,8 +1,17 @@
 package main
 
-import "gonum.org/v1/gonum/mat"
+import (
+	"math"
+	"math/rand"
+
+	"gonum.org/v1/gonum/mat"
+)
 
 const errTh = 10
+
+func randPixelVal() float64 {
+	return math.Floor(rand.Float64() * 255)
+}
 
 // ExtractScribble -
 func ExtractScribble(imgMats, scrb ColorMat) (ColorMat, ColorMat, ColorMat, *mat.Dense) {
@@ -29,7 +38,14 @@ func ExtractScribble(imgMats, scrb ColorMat) (ColorMat, ColorMat, ColorMat, *mat
 			return -1
 		}
 
-		// Unknown
+		// Unknown - random
+		Alp[0].Set(i, j, randPixelVal())
+
+		for c := 0; c < chs; c++ {
+			FG[c].Set(i, j, randPixelVal())
+			BG[c].Set(i, j, randPixelVal())
+		}
+
 		return 0
 	}, scrb[0])
 

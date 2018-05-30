@@ -6,8 +6,8 @@ import (
 	"gocv.io/x/gocv"
 )
 
-const imgPath = "cat.jpg"
-const scrbPath = "cat_scrb.jpg"
+const imgPath = "cat_sm.jpg"
+const scrbPath = "cat_sm_scrb.jpg"
 
 func main() {
 	fmt.Println("Reading input...")
@@ -15,18 +15,8 @@ func main() {
 	scrb := gocv.IMRead(scrbPath, gocv.IMReadGrayScale)
 
 	imgMats := GetNumMat(img)
-	// fmt.Println(len(imgMats))
-
-	// for i := range imgMats {
-	// 	fmt.Println(mat.Sum(imgMats[i]))
-	// }
 
 	scrbMats := GetNumMat(scrb)
-	// fmt.Println(len(scrbMats))
-
-	// for i := range scrbMats {
-	// 	fmt.Println(mat.Sum(scrbMats[i]))
-	// }
 
 	fmt.Println("Extracting scribble...")
 
@@ -42,7 +32,5 @@ func main() {
 
 	gocv.IMWrite("out-nfg.jpg", SaveNeighborLog(nFG))
 	gocv.IMWrite("out-nbg.jpg", SaveNeighborLog(nBG))
-
-	// fmt.Println(ScrbMask)
 
 }
