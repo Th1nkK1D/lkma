@@ -19,7 +19,7 @@ func ExtractScribble(imgMats, scrb ColorMat) (ColorMat, ColorMat, ColorMat, *mat
 	chs := len(imgMats)
 
 	FG, BG := NewColorMat(nR, nC, chs, GetBlankFloats(nR, nC, chs)), NewColorMat(nR, nC, chs, GetBlankFloats(nR, nC, chs))
-	Alp := NewColorMat(nR, nC, 1, GetBlankFloats(nR, nC, chs))
+	Alp := NewColorMat(nR, nC, 1, GetBlankFloats(nR, nC, 1))
 	ScrbMask := mat.NewDense(nR, nC, make([]float64, nR*nC))
 
 	ScrbMask.Apply(func(i, j int, v float64) float64 {

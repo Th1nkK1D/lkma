@@ -3,41 +3,59 @@ package main
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"strconv"
 
 	"gocv.io/x/gocv"
 
 	"gonum.org/v1/gonum/mat"
+	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/plotutil"
+	"gonum.org/v1/plot/vg"
 )
 
-type stateRes struct {
-	value  float64
-	e      float64
-	eTotal float64
-	prop   float64
-}
-
+const smWeight = 1
 const pdWeight = 1
 const cdWeight = 1
 const ieWeight = 1
 
-const eThreshold = 0.00001
+const eThreshold = 100
 const captureEach = 5
 
-// const tStartRatio = 0.25
-// const tDecline = 0.95
+const tStartRatio = 0.25
+const tDecline = 0.9
 
 const step = 0.001
 
 // Calculate E at a specific point
 func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]NeighborLog) float64 {
+	nRow, nCol := S.Dims()
+	e := 0.0
+
+	// Smoothness constrain
+	sCount, sSum := 0.0, 0.0
+
+	if i < nRow-1 {
+		sSum += GetColorDistance(FG, i, j, i+1, j)/3 + GetColorDistance(BG, i, j, i+1, j)/3 + math.Abs(A[0].At(i, j)-A[0].At(i+1, j))/3
+		sCount++
+	}
+
+	if j < nCol-1 {
+		sSum += GetColorDistance(FG, i, j, i, j+1)/3 + GetColorDistance(BG, i, j, i, j+1)/3 + math.Abs(A[0].At(i, j)-A[0].At(i, j+1))/3
+		sCount++
+	}
+
+	if sCount > 0 {
+		e += smWeight * sSum / 256 / sCount
+	}
+
 	if S.At(i, j) != 0 {
-		return 0
+		return e
 	}
 
 	// NN Pixel distance
-	e := pdWeight * math.Pow(A[0].At(i, j)/256-nFG[i][j].dist/(nFG[i][j].dist+nBG[i][j].dist), 2)
+	e += pdWeight * math.Pow(A[0].At(i, j)/256-nFG[i][j].dist/(nFG[i][j].dist+nBG[i][j].dist), 2)
 
 	// NN Color space distance
 	fgd, bgd := GetColorDistance(I, i, j, nFG[i][j].i, nFG[i][j].j), GetColorDistance(I, i, j, nBG[i][j].i, nBG[i][j].j)
@@ -58,12 +76,12 @@ func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Nei
 }
 
 // GetInitEnergy - Initialize energy matrix
-func getInitEnergy(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]NeighborLog) (*mat.Dense, float64) {
+func getInitEnergy(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]NeighborLog) (*mat.Dense, float64, float64) {
 	nRow, nCol := I[0].Dims()
 
 	E := mat.NewDense(nRow, nCol, make([]float64, nRow*nCol))
 
-	e := 0.0
+	e, eMax := 0.0, 0.0
 
 	// Calculate E
 	for i := nRow - 1; i >= 0; i-- {
@@ -71,81 +89,228 @@ func getInitEnergy(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]NeighborLog
 			ce := getEnergyAt(i, j, I, FG, BG, A, S, nFG, nBG)
 			E.Set(i, j, ce)
 
-			// if ce > eMax {
-			// 	eMax = ce
-			// }
+			if ce > eMax {
+				eMax = ce
+			}
 
 			e += ce
 		}
 	}
 
-	// tStart := eMax * tStartRatio
+	tStart := eMax * tStartRatio
 
-	return E, e
+	return E, e, tStart
 }
 
-func updateValue(I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLog) (ColorMat, ColorMat, ColorMat, *mat.Dense, float64) {
+// Calculate Probability
+func calProp(states []StateRes, eTotalMin, t float64) ([]StateRes, []StateRes, float64) {
+	eSmallest := -t * math.Log(math.MaxFloat64)
+	pSum := 0.0
+
+	updatedStates := make([]StateRes, 0)
+
+	for s := range states {
+		states[s].eTotal -= eTotalMin
+
+		// Overflow handle
+		if states[s].e < eSmallest {
+			states[s].prop = 0
+		} else {
+			states[s].prop = math.Pow(math.E, -states[s].eTotal/t)
+
+		}
+
+		if states[s].prop > 0 {
+			updatedStates = append(updatedStates, states[s])
+			pSum += states[s].prop
+		}
+	}
+
+	return states, updatedStates, pSum
+}
+
+// Sampling from PDF
+func samplingPDF(states, updatedStates []StateRes, pSum float64) StateRes {
+	randVal := rand.Float64() * pSum
+	nState := len(updatedStates)
+	i := 0
+
+	if len(updatedStates) == 0 {
+		return states[rand.Intn(len(states)-1)]
+	}
+
+	for stack := 0.0; i < nState && stack < randVal; i++ {
+		stack += updatedStates[i].prop
+	}
+
+	if i >= nState {
+		return updatedStates[nState-1]
+	}
+
+	return updatedStates[i]
+}
+
+func updateFG(i, j, ch int, I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLog, e, t float64) float64 {
+	eTotalMin := math.MaxFloat64
+	cv := FG[ch].At(i, j)
+
+	states := make([]StateRes, 256)
+	si := 0
+
+	// State space energy calculating
+	for s := 0.0; s < 256; s += 1.0 {
+		states[si].value = s
+		FG[ch].Set(i, j, s)
+
+		states[si].e = getEnergyAt(i, j, I, FG, BG, A, S, nFG, nBG)
+
+		states[si].eTotal = e + states[si].e - E.At(i, j)
+
+		if i > 0 {
+			states[si].eTotal += getEnergyAt(i-1, j, I, FG, BG, A, S, nFG, nBG) - E.At(i-1, j)
+		}
+
+		if j > 0 {
+			states[si].eTotal += getEnergyAt(i, j-1, I, FG, BG, A, S, nFG, nBG) - E.At(i, j-1)
+		}
+
+		// Check for min
+		if states[si].eTotal < eTotalMin {
+			eTotalMin = states[si].eTotal
+		}
+		si++
+	}
+
+	FG[ch].Set(i, j, cv)
+	// fmt.Printf("FG (%v,%v) = %v\n", i, j, FG[ch].At(i, j))
+
+	// Update new Value
+	sTarget := samplingPDF(calProp(states, eTotalMin, t))
+	// fmt.Println(sTarget)
+
+	return sTarget.value
+}
+
+func updateBG(i, j, ch int, I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLog, e, t float64) float64 {
+	eTotalMin := math.MaxFloat64
+	cv := BG[ch].At(i, j)
+
+	states := make([]StateRes, 256)
+	si := 0
+
+	// State space energy calculating
+	for s := 0.0; s < 256; s += 1.0 {
+		states[si].value = s
+		BG[ch].Set(i, j, s)
+
+		states[si].e = getEnergyAt(i, j, I, FG, BG, A, S, nFG, nBG)
+
+		states[si].eTotal = e + states[si].e - E.At(i, j)
+
+		if i > 0 {
+			states[si].eTotal += getEnergyAt(i-1, j, I, FG, BG, A, S, nFG, nBG) - E.At(i-1, j)
+		}
+
+		if j > 0 {
+			states[si].eTotal += getEnergyAt(i, j-1, I, FG, BG, A, S, nFG, nBG) - E.At(i, j-1)
+		}
+
+		// Check for min
+		if states[si].eTotal < eTotalMin {
+			eTotalMin = states[si].eTotal
+		}
+		si++
+	}
+
+	BG[ch].Set(i, j, cv)
+
+	// Update new Value
+	sTarget := samplingPDF(calProp(states, eTotalMin, t))
+
+	return sTarget.value
+}
+
+func updateA(i, j int, I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLog, e, t float64) float64 {
+	eTotalMin := math.MaxFloat64
+	cv := A[0].At(i, j)
+
+	states := make([]StateRes, 256)
+	si := 0
+
+	// State space energy calculating
+	for s := 0.0; s < 256; s += 1.0 {
+		states[si].value = s
+		A[0].Set(i, j, s)
+
+		states[si].e = getEnergyAt(i, j, I, FG, BG, A, S, nFG, nBG)
+
+		states[si].eTotal = e + states[si].e - E.At(i, j)
+
+		if i > 0 {
+			states[si].eTotal += getEnergyAt(i-1, j, I, FG, BG, A, S, nFG, nBG) - E.At(i-1, j)
+		}
+
+		if j > 0 {
+			states[si].eTotal += getEnergyAt(i, j-1, I, FG, BG, A, S, nFG, nBG) - E.At(i, j-1)
+		}
+
+		// Check for min
+		if states[si].eTotal < eTotalMin {
+			eTotalMin = states[si].eTotal
+		}
+		si++
+	}
+
+	A[0].Set(i, j, cv)
+
+	// Update new Value
+	sTarget := samplingPDF(calProp(states, eTotalMin, t))
+
+	return sTarget.value
+}
+
+func updateValue(I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLog, e, t float64) (ColorMat, ColorMat, ColorMat, *mat.Dense, float64) {
 	nRow, nCol := I[0].Dims()
 	chs := len(I)
-	eps := 0.00001 //math.SmallestNonzeroFloat64
-
 	newFG, newBG := NewColorMat(nRow, nCol, chs, GetBlankFloats(nRow, nCol, chs)), NewColorMat(nRow, nCol, chs, GetBlankFloats(nRow, nCol, chs))
 	newA := NewColorMat(nRow, nCol, 1, GetBlankFloats(nRow, nCol, 1))
 	newE := mat.NewDense(nRow, nCol, make([]float64, nRow*nCol))
+	newe := 0.0
 
-	// Numerical derivative
+	// Get update values
 	for i := 0; i < nRow; i++ {
 		for j := 0; j < nCol; j++ {
-
 			if S.At(i, j) == 0 {
-				// FG update
 				for ch := 0; ch < chs; ch++ {
-					x := FG[ch].At(i, j)
-
-					FG[ch].Set(i, j, x+eps)
-
-					fpx := (getEnergyAt(i, j, I, FG, BG, A, S, nFG, nBG) - E.At(i, j)) / eps
-
-					newFG[ch].Set(i, j, x-step*fpx)
-					FG[ch].Set(i, j, x)
+					newFG[ch].Set(i, j, updateFG(i, j, ch, I, FG, BG, A, S, E, nFG, nBG, e, t))
+					newBG[ch].Set(i, j, updateBG(i, j, ch, I, FG, BG, A, S, E, nFG, nBG, e, t))
 				}
 
-				// BG update
-				for ch := 0; ch < chs; ch++ {
-					x := BG[ch].At(i, j)
+				newA[0].Set(i, j, updateA(i, j, I, FG, BG, A, S, E, nFG, nBG, e, t))
 
-					BG[ch].Set(i, j, x+eps)
-
-					fpx := (getEnergyAt(i, j, I, FG, BG, A, S, nFG, nBG) - E.At(i, j)) / eps
-
-					newBG[ch].Set(i, j, x-step*fpx)
-					BG[ch].Set(i, j, x)
-				}
-
-				// Alpha update
-				x := A[0].At(i, j)
-
-				A[0].Set(i, j, x+eps)
-
-				fpx := (getEnergyAt(i, j, I, FG, BG, A, S, nFG, nBG) - E.At(i, j)) / eps
-
-				newA[0].Set(i, j, x-step*fpx)
-				A[0].Set(i, j, x)
-
-				// fmt.Printf("A(%v,%v), %v -> %v\n", i, j, A[0].At(i, j), newA[0].At(i, j))
-
-				// Update energy
-				newE.Set(i, j, getEnergyAt(i, j, I, FG, BG, A, S, nFG, nBG))
+			} else {
+				CloneColorMatPixel(newFG, FG, i, j)
+				CloneColorMatPixel(newBG, BG, i, j)
+				CloneColorMatPixel(newA, A, i, j)
 			}
 		}
 	}
 
-	return newFG, newBG, newA, newE, mat.Sum(newE)
+	// Update E
+	for i := 0; i < nRow; i++ {
+		for j := 0; j < nCol; j++ {
+			ce := getEnergyAt(i, j, I, newFG, BG, A, S, nFG, nBG)
+			newE.Set(i, j, ce)
+			newe += ce
+		}
+	}
+
+	return newFG, newBG, newA, newE, newe
 }
 
 // RunGradientDescent -
 func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]NeighborLog) {
-	E, e := getInitEnergy(I, FG, BG, A, S, nFG, nBG)
+	E, e, t := getInitEnergy(I, FG, BG, A, S, nFG, nBG)
 
 	le, l2e := 0.0, 0.0
 	de := e
@@ -156,7 +321,7 @@ func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Neighb
 
 	// Gradient descent looping
 	for ; de > eThreshold; i++ {
-		fmt.Printf("%v: E = %v, dE_avg = %v (%v)\n", i, e, de, eThreshold)
+		fmt.Printf("%v: E = %v, dE_avg = %v (%v), t = %v\n", i, e, de, eThreshold, t)
 
 		// Save for graph plotting
 		p := make(plotter.XYs, 1)
@@ -177,13 +342,14 @@ func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Neighb
 		l2e = le
 		le = e
 
-		FG, BG, A, E, e = updateValue(I, FG, BG, A, S, E, nFG, nBG)
+		FG, BG, A, E, e = updateValue(I, FG, BG, A, S, E, nFG, nBG, e, t)
 
 		de = (math.Abs(e-le) + math.Abs(le-l2e)) / 2
 
+		t *= tDecline
 	}
 
-	fmt.Printf("%v (Final): E = %v, dE_avg = %v (%v)\n", i, e, de, eThreshold)
+	fmt.Printf("%v (Final): E = %v, dE_avg = %v (%v), t = %v\n", i, e, de, eThreshold, t)
 
 	// Save for graph plotting
 	p := make(plotter.XYs, 1)
@@ -198,22 +364,22 @@ func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Neighb
 	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-bg.jpg", GetCVMat(BG, gocv.MatChannels3))
 	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-a.jpg", GetCVMat(A, gocv.MatChannels3))
 
-	// // Plot graph
-	// plots, err := plot.New()
-	// if err != nil {
-	// 	panic(err)
-	// }
+	// Plot graph
+	plots, err := plot.New()
+	if err != nil {
+		panic(err)
+	}
 
-	// plots.Title.Text = "Gibb's Sampling Energy"
-	// plots.X.Label.Text = "Iteration"
-	// plots.Y.Label.Text = "Energy"
+	plots.Title.Text = "Gibb's Sampling Energy"
+	plots.X.Label.Text = "Iteration"
+	plots.Y.Label.Text = "Energy"
 
-	// err = plotutil.AddLines(plots, "", points)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	err = plotutil.AddLines(plots, "", points)
+	if err != nil {
+		panic(err)
+	}
 
-	// if err := plots.Save(8*vg.Inch, 5*vg.Inch, "energy.png"); err != nil {
-	// 	panic(err)
-	// }
+	if err := plots.Save(8*vg.Inch, 5*vg.Inch, "energy.png"); err != nil {
+		panic(err)
+	}
 }
