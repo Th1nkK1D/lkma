@@ -33,10 +33,6 @@ func main() {
 	gocv.IMWrite("out-nfg.jpg", SaveNeighborLog(nFG))
 	gocv.IMWrite("out-nbg.jpg", SaveNeighborLog(nBG))
 
-	_, e, tStart := GetInitEnergy(I, FG, BG, A, S, nFG, nBG)
-
-	// fmt.Println(E)
-	fmt.Println(e)
-	fmt.Println(tStart)
+	RunGradientDescent(I, FG, BG, A, S, nFG, nBG)
 
 }
