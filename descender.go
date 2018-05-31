@@ -20,6 +20,7 @@ type stateRes struct {
 
 const pdWeight = 1
 const cdWeight = 1
+const ieWeight = 1
 
 const eThreshold = 0.00001
 const captureEach = 5
@@ -42,6 +43,16 @@ func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Nei
 	fgd, bgd := GetColorDistance(I, i, j, nFG[i][j].i, nFG[i][j].j), GetColorDistance(I, i, j, nBG[i][j].i, nBG[i][j].j)
 
 	e += cdWeight * math.Pow(A[0].At(i, j)/256-fgd/(fgd+bgd), 2)
+
+	// Image error
+	ie := 0.0
+	a := A[0].At(i, j)
+
+	for ch := 0; ch < len(I); ch++ {
+		ie += math.Pow(I[ch].At(i, j)-(a*FG[ch].At(i, j)-(1-a)*BG[ch].At(i, j)), 2)
+	}
+
+	e += ieWeight * math.Sqrt(ie) / 256
 
 	return e
 }
