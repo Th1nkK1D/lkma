@@ -25,7 +25,7 @@ func ExtractScribble(imgMats, scrb ColorMat) (ColorMat, ColorMat, ColorMat, *mat
 	ScrbMask.Apply(func(i, j int, v float64) float64 {
 		if v < errTh {
 			// FG
-			CloneColorMatPixel(FG, imgMats, i, j)
+			CloneColorMatPixel(FG, i, j, imgMats, i, j)
 			Alp[0].Set(i, j, 255)
 
 			return 1
@@ -33,7 +33,7 @@ func ExtractScribble(imgMats, scrb ColorMat) (ColorMat, ColorMat, ColorMat, *mat
 
 		if v > 255-errTh {
 			// BG
-			CloneColorMatPixel(BG, imgMats, i, j)
+			CloneColorMatPixel(BG, i, j, imgMats, i, j)
 
 			return -1
 		}

@@ -15,12 +15,13 @@ import (
 	"gonum.org/v1/plot/vg"
 )
 
-const smWeight = 1
+const sgWeight = 1
+const saWeight = 1
 const pdWeight = 1
 const cdWeight = 1
 const ieWeight = 1
 
-const eThreshold = 100
+const eThreshold = 1000
 const captureEach = 5
 
 const tStartRatio = 0.25
@@ -32,20 +33,21 @@ func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Nei
 	e := 0.0
 
 	// Smoothness constrain
-	sCount, sSum := 0.0, 0.0
+	sCount, sgSum, saSum := 0.0, 0.0, 0.0
 
 	if i < nRow-1 {
-		sSum += GetColorDistance(FG, i, j, i+1, j)/3 + GetColorDistance(BG, i, j, i+1, j)/3 + math.Pow((A[0].At(i, j)-A[0].At(i+1, j))/256, 2)/3
+		sgSum += GetColorDistance(FG, i, j, i+1, j)/2 + GetColorDistance(BG, i, j, i+1, j)/2
+		saSum += math.Abs(GetColorDistance(I, i, j, i+1, j) - GetColorDistance(A, i, j, i+1, j))
 		sCount++
 	}
 
 	if j < nCol-1 {
-		sSum += GetColorDistance(FG, i, j, i, j+1)/3 + GetColorDistance(BG, i, j, i, j+1)/3 + math.Pow((A[0].At(i, j)-A[0].At(i, j+1))/256, 2)/3
-		sCount++
+		sgSum += GetColorDistance(FG, i, j, i, j+1)/2 + GetColorDistance(BG, i, j, i, j+1)/2
+		saSum += math.Abs(GetColorDistance(I, i, j, i, j+1) - GetColorDistance(A, i, j, i, j+1))
 	}
 
 	if sCount > 0 {
-		e += smWeight * sSum / sCount
+		e += (sgWeight*sgSum + saWeight*saSum) / sCount
 	}
 
 	if S.At(i, j) != 0 {
@@ -61,14 +63,15 @@ func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Nei
 	e += cdWeight * math.Pow(A[0].At(i, j)/256-bgd/(fgd+bgd), 2)
 
 	// Image error
+	chs := len(I)
 	ie := 0.0
 	a := A[0].At(i, j)
 
-	for ch := 0; ch < len(I); ch++ {
+	for ch := 0; ch < chs; ch++ {
 		ie += math.Pow(I[ch].At(i, j)-(a*FG[ch].At(i, j)-(1-a)*BG[ch].At(i, j)), 2)
 	}
 
-	e += ieWeight * math.Sqrt(ie) / 256
+	e += ieWeight * ie / float64(256*chs)
 
 	return e
 }
@@ -287,9 +290,9 @@ func updateValue(I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLo
 				newA[0].Set(i, j, updateA(i, j, I, FG, BG, A, S, E, nFG, nBG, e, t))
 
 			} else {
-				CloneColorMatPixel(newFG, FG, i, j)
-				CloneColorMatPixel(newBG, BG, i, j)
-				CloneColorMatPixel(newA, A, i, j)
+				CloneColorMatPixel(newFG, i, j, FG, i, j)
+				CloneColorMatPixel(newBG, i, j, BG, i, j)
+				CloneColorMatPixel(newA, i, j, A, i, j)
 			}
 		}
 	}
@@ -377,7 +380,7 @@ func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Neighb
 		panic(err)
 	}
 
-	if err := plots.Save(8*vg.Inch, 5*vg.Inch, "energy.png"); err != nil {
+	if err := plots.Save(8*vg.Inch, 5*vg.Inch, "out-energy.png"); err != nil {
 		panic(err)
 	}
 }

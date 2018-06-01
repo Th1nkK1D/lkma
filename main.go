@@ -22,9 +22,9 @@ func main() {
 
 	FG, BG, A, S := ExtractScribble(I, scrbMats)
 
+	gocv.IMWrite("out-alp.jpg", GetCVMat(A, gocv.MatChannels1))
 	gocv.IMWrite("out-fg.jpg", GetCVMat(FG, gocv.MatChannels3))
 	gocv.IMWrite("out-bg.jpg", GetCVMat(BG, gocv.MatChannels3))
-	gocv.IMWrite("out-alp.jpg", GetCVMat(A, gocv.MatChannels1))
 
 	fmt.Println("Exploring neighbor...")
 
@@ -33,6 +33,11 @@ func main() {
 	gocv.IMWrite("out-nfg.jpg", SaveNeighborLog(nFG))
 	gocv.IMWrite("out-nbg.jpg", SaveNeighborLog(nBG))
 
-	RunGradientDescent(I, FG, BG, A, S, nFG, nBG)
+	MimicNeighbor(I, FG, BG, S, nFG, nBG)
+
+	gocv.IMWrite("out-fg-mimic.jpg", GetCVMat(FG, gocv.MatChannels3))
+	gocv.IMWrite("out-bg-mimic.jpg", GetCVMat(BG, gocv.MatChannels3))
+
+	// RunGradientDescent(I, FG, BG, A, S, nFG, nBG)
 
 }
