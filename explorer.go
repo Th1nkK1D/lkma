@@ -69,6 +69,21 @@ func ExploreNeighbor(mask *mat.Dense) ([][]NeighborLog, [][]NeighborLog) {
 	return neighborFG, neighborBG
 }
 
+// MimicNeighbor -
+func MimicNeighbor(I, FG, BG ColorMat, mask *mat.Dense, neighborFG, neighborBG [][]NeighborLog) {
+	nRow, nCol := mask.Dims()
+
+	// Mimic
+	for i := 0; i < nRow; i++ {
+		for j := 0; j < nCol; j++ {
+			if mask.At(i, j) == 0 {
+				CloneColorMatPixel(FG, i, j, I, neighborFG[i][j].i, neighborFG[i][j].j)
+				CloneColorMatPixel(BG, i, j, I, neighborBG[i][j].i, neighborBG[i][j].j)
+			}
+		}
+	}
+}
+
 // SaveNeighborLog -
 func SaveNeighborLog(neighbors [][]NeighborLog) gocv.Mat {
 	nRow, nCol := len(neighbors), len(neighbors[0])
