@@ -8,41 +8,58 @@ import (
 	"gocv.io/x/gocv"
 
 	"gonum.org/v1/gonum/mat"
+	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/plotutil"
+	"gonum.org/v1/plot/vg"
 )
 
-type stateRes struct {
-	value  float64
-	e      float64
-	eTotal float64
-	prop   float64
-}
-
+const smWeight = 1
 const pdWeight = 1
 const cdWeight = 1
 const ieWeight = 1
 
-const eThreshold = 0.00001
-const captureEach = 5
+const eThreshold = 10
+const captureEach = 200
 
 // const tStartRatio = 0.25
 // const tDecline = 0.95
 
-const step = 0.001
+const step = 0.05
 
 // Calculate E at a specific point
 func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]NeighborLog) float64 {
+	nRow, nCol := S.Dims()
+	e := 0.0
+
+	// Smoothness constrain
+	sCount, sSum := 0.0, 0.0
+
+	if i < nRow-1 {
+		sSum += GetColorDistance(FG, i, j, i+1, j)/3 + GetColorDistance(BG, i, j, i+1, j)/3 + math.Abs(A[0].At(i, j)-A[0].At(i+1, j))/3
+		sCount++
+	}
+
+	if j < nCol-1 {
+		sSum += GetColorDistance(FG, i, j, i, j+1)/3 + GetColorDistance(BG, i, j, i, j+1)/3 + math.Abs(A[0].At(i, j)-A[0].At(i, j+1))/3
+		sCount++
+	}
+
+	if sCount > 0 {
+		e += smWeight * sSum / 256 / sCount
+	}
+
 	if S.At(i, j) != 0 {
-		return 0
+		return e
 	}
 
 	// NN Pixel distance
-	e := pdWeight * math.Pow(A[0].At(i, j)/256-nFG[i][j].dist/(nFG[i][j].dist+nBG[i][j].dist), 2)
+	e += pdWeight * math.Pow(A[0].At(i, j)/256-nBG[i][j].dist/(nFG[i][j].dist+nBG[i][j].dist), 2)
 
 	// NN Color space distance
 	fgd, bgd := GetColorDistance(I, i, j, nFG[i][j].i, nFG[i][j].j), GetColorDistance(I, i, j, nBG[i][j].i, nBG[i][j].j)
 
-	e += cdWeight * math.Pow(A[0].At(i, j)/256-fgd/(fgd+bgd), 2)
+	e += cdWeight * math.Pow(A[0].At(i, j)/256-bgd/(fgd+bgd), 2)
 
 	// Image error
 	ie := 0.0
@@ -87,7 +104,7 @@ func getInitEnergy(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]NeighborLog
 func updateValue(I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLog) (ColorMat, ColorMat, ColorMat, *mat.Dense, float64) {
 	nRow, nCol := I[0].Dims()
 	chs := len(I)
-	eps := 0.00001 //math.SmallestNonzeroFloat64
+	eps := math.Sqrt(2.2 * math.Pow(10, -16)) //math.SmallestNonzeroFloat64
 
 	newFG, newBG := NewColorMat(nRow, nCol, chs, GetBlankFloats(nRow, nCol, chs)), NewColorMat(nRow, nCol, chs, GetBlankFloats(nRow, nCol, chs))
 	newA := NewColorMat(nRow, nCol, 1, GetBlankFloats(nRow, nCol, 1))
@@ -133,10 +150,15 @@ func updateValue(I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLo
 				A[0].Set(i, j, x)
 
 				// fmt.Printf("A(%v,%v), %v -> %v\n", i, j, A[0].At(i, j), newA[0].At(i, j))
-
-				// Update energy
-				newE.Set(i, j, getEnergyAt(i, j, I, FG, BG, A, S, nFG, nBG))
 			}
+
+		}
+	}
+
+	// Update energy
+	for i := 0; i < nRow; i++ {
+		for j := 0; j < nCol; j++ {
+			newE.Set(i, j, getEnergyAt(i, j, I, newFG, newBG, newA, S, nFG, nBG))
 		}
 	}
 
@@ -198,22 +220,22 @@ func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Neighb
 	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-bg.jpg", GetCVMat(BG, gocv.MatChannels3))
 	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-a.jpg", GetCVMat(A, gocv.MatChannels3))
 
-	// // Plot graph
-	// plots, err := plot.New()
-	// if err != nil {
-	// 	panic(err)
-	// }
+	// Plot graph
+	plots, err := plot.New()
+	if err != nil {
+		panic(err)
+	}
 
-	// plots.Title.Text = "Gibb's Sampling Energy"
-	// plots.X.Label.Text = "Iteration"
-	// plots.Y.Label.Text = "Energy"
+	plots.Title.Text = "Gibb's Sampling Energy"
+	plots.X.Label.Text = "Iteration"
+	plots.Y.Label.Text = "Energy"
 
-	// err = plotutil.AddLines(plots, "", points)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	err = plotutil.AddLines(plots, "", points)
+	if err != nil {
+		panic(err)
+	}
 
-	// if err := plots.Save(8*vg.Inch, 5*vg.Inch, "energy.png"); err != nil {
-	// 	panic(err)
-	// }
+	if err := plots.Save(8*vg.Inch, 5*vg.Inch, "energy.png"); err != nil {
+		panic(err)
+	}
 }

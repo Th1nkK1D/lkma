@@ -1,7 +1,6 @@
 package main
 
 import (
-	"math"
 	"math/rand"
 
 	"gonum.org/v1/gonum/mat"
@@ -10,7 +9,7 @@ import (
 const errTh = 10
 
 func randPixelVal() float64 {
-	return math.Floor(rand.Float64() * 255)
+	return rand.Float64() * 255
 }
 
 // ExtractScribble -
