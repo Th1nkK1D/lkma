@@ -38,6 +38,6 @@ func main() {
 	gocv.IMWrite("out-fg-mimic.jpg", GetCVMat(FG, gocv.MatChannels3))
 	gocv.IMWrite("out-bg-mimic.jpg", GetCVMat(BG, gocv.MatChannels3))
 
-	// RunGradientDescent(I, FG, BG, A, S, nFG, nBG)
+	RunGradientDescent(I, FG, BG, A, S, nFG, nBG)
 
 }

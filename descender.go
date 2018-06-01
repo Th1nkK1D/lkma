@@ -15,11 +15,11 @@ import (
 	"gonum.org/v1/plot/vg"
 )
 
-const sgWeight = 1
-const saWeight = 1
+// const sgWeight = 1
+const saWeight = 2
 const pdWeight = 1
 const cdWeight = 1
-const ieWeight = 1
+const ieWeight = 4
 
 const eThreshold = 1000
 const captureEach = 5
@@ -33,21 +33,21 @@ func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Nei
 	e := 0.0
 
 	// Smoothness constrain
-	sCount, sgSum, saSum := 0.0, 0.0, 0.0
+	sCount, saSum := 0.0, 0.0
 
 	if i < nRow-1 {
-		sgSum += GetColorDistance(FG, i, j, i+1, j)/2 + GetColorDistance(BG, i, j, i+1, j)/2
-		saSum += math.Abs(GetColorDistance(I, i, j, i+1, j) - GetColorDistance(A, i, j, i+1, j))
+		// sgSum += GetColorDistance(FG, i, j, i+1, j)/2 + GetColorDistance(BG, i, j, i+1, j)/2
+		saSum += math.Pow(GetColorDistance(I, i, j, i+1, j)-GetColorDistance(A, i, j, i+1, j), 2)
 		sCount++
 	}
 
 	if j < nCol-1 {
-		sgSum += GetColorDistance(FG, i, j, i, j+1)/2 + GetColorDistance(BG, i, j, i, j+1)/2
-		saSum += math.Abs(GetColorDistance(I, i, j, i, j+1) - GetColorDistance(A, i, j, i, j+1))
+		// sgSum += GetColorDistance(FG, i, j, i, j+1)/2 + GetColorDistance(BG, i, j, i, j+1)/2
+		saSum += math.Pow(GetColorDistance(I, i, j, i, j+1)-GetColorDistance(A, i, j, i, j+1), 2)
 	}
 
 	if sCount > 0 {
-		e += (sgWeight*sgSum + saWeight*saSum) / sCount
+		e += (saWeight * saSum) / sCount
 	}
 
 	if S.At(i, j) != 0 {
@@ -65,7 +65,7 @@ func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Nei
 	// Image error
 	chs := len(I)
 	ie := 0.0
-	a := A[0].At(i, j)
+	a := A[0].At(i, j) / 255
 
 	for ch := 0; ch < chs; ch++ {
 		ie += math.Pow(I[ch].At(i, j)-(a*FG[ch].At(i, j)-(1-a)*BG[ch].At(i, j)), 2)
@@ -270,10 +270,10 @@ func updateA(i, j int, I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]Neig
 	return sTarget.value
 }
 
-func updateValue(I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLog, e, t float64) (ColorMat, ColorMat, ColorMat, *mat.Dense, float64) {
+func updateValue(I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLog, e, t float64) (ColorMat, *mat.Dense, float64) {
 	nRow, nCol := I[0].Dims()
-	chs := len(I)
-	newFG, newBG := NewColorMat(nRow, nCol, chs, GetBlankFloats(nRow, nCol, chs)), NewColorMat(nRow, nCol, chs, GetBlankFloats(nRow, nCol, chs))
+	// chs := len(I)
+	// newFG, newBG := NewColorMat(nRow, nCol, chs, GetBlankFloats(nRow, nCol, chs)), NewColorMat(nRow, nCol, chs, GetBlankFloats(nRow, nCol, chs))
 	newA := NewColorMat(nRow, nCol, 1, GetBlankFloats(nRow, nCol, 1))
 	newE := mat.NewDense(nRow, nCol, make([]float64, nRow*nCol))
 	newe := 0.0
@@ -282,16 +282,16 @@ func updateValue(I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLo
 	for i := 0; i < nRow; i++ {
 		for j := 0; j < nCol; j++ {
 			if S.At(i, j) == 0 {
-				for ch := 0; ch < chs; ch++ {
-					newFG[ch].Set(i, j, updateFG(i, j, ch, I, FG, BG, A, S, E, nFG, nBG, e, t))
-					newBG[ch].Set(i, j, updateBG(i, j, ch, I, FG, BG, A, S, E, nFG, nBG, e, t))
-				}
+				// for ch := 0; ch < chs; ch++ {
+				// 	newFG[ch].Set(i, j, updateFG(i, j, ch, I, FG, BG, A, S, E, nFG, nBG, e, t))
+				// 	newBG[ch].Set(i, j, updateBG(i, j, ch, I, FG, BG, A, S, E, nFG, nBG, e, t))
+				// }
 
 				newA[0].Set(i, j, updateA(i, j, I, FG, BG, A, S, E, nFG, nBG, e, t))
 
 			} else {
-				CloneColorMatPixel(newFG, i, j, FG, i, j)
-				CloneColorMatPixel(newBG, i, j, BG, i, j)
+				// CloneColorMatPixel(newFG, i, j, FG, i, j)
+				// CloneColorMatPixel(newBG, i, j, BG, i, j)
 				CloneColorMatPixel(newA, i, j, A, i, j)
 			}
 		}
@@ -300,13 +300,13 @@ func updateValue(I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLo
 	// Update E
 	for i := 0; i < nRow; i++ {
 		for j := 0; j < nCol; j++ {
-			ce := getEnergyAt(i, j, I, newFG, BG, A, S, nFG, nBG)
+			ce := getEnergyAt(i, j, I, FG, BG, A, S, nFG, nBG)
 			newE.Set(i, j, ce)
 			newe += ce
 		}
 	}
 
-	return newFG, newBG, newA, newE, newe
+	return newA, newE, newe
 }
 
 // RunGradientDescent -
@@ -334,8 +334,8 @@ func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Neighb
 
 		// Print preview
 		if i%captureEach == 0 {
-			gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-fg.jpg", GetCVMat(FG, gocv.MatChannels3))
-			gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-bg.jpg", GetCVMat(BG, gocv.MatChannels3))
+			// gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-fg.jpg", GetCVMat(FG, gocv.MatChannels3))
+			// gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-bg.jpg", GetCVMat(BG, gocv.MatChannels3))
 			gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-a.jpg", GetCVMat(A, gocv.MatChannels1))
 		}
 
@@ -343,7 +343,7 @@ func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Neighb
 		l2e = le
 		le = e
 
-		FG, BG, A, E, e = updateValue(I, FG, BG, A, S, E, nFG, nBG, e, t)
+		A, E, e = updateValue(I, FG, BG, A, S, E, nFG, nBG, e, t)
 
 		de = (math.Abs(e-le) + math.Abs(le-l2e)) / 2
 
@@ -361,8 +361,8 @@ func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Neighb
 	points = append(points, p[0])
 
 	// Write output
-	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-fg.jpg", GetCVMat(FG, gocv.MatChannels3))
-	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-bg.jpg", GetCVMat(BG, gocv.MatChannels3))
+	// gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-fg.jpg", GetCVMat(FG, gocv.MatChannels3))
+	// gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-bg.jpg", GetCVMat(BG, gocv.MatChannels3))
 	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-a.jpg", GetCVMat(A, gocv.MatChannels1))
 
 	// Plot graph
