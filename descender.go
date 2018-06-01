@@ -15,13 +15,13 @@ import (
 	"gonum.org/v1/plot/vg"
 )
 
-// const sgWeight = 1
 const saWeight = 2
 const pdWeight = 1
 const cdWeight = 1
 const ieWeight = 4
 
 const eThreshold = 1000
+const loopLimit = 100
 const captureEach = 5
 
 const tStartRatio = 0.25
@@ -36,14 +36,15 @@ func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Nei
 	sCount, saSum := 0.0, 0.0
 
 	if i < nRow-1 {
-		// sgSum += GetColorDistance(FG, i, j, i+1, j)/2 + GetColorDistance(BG, i, j, i+1, j)/2
 		saSum += math.Pow(GetColorDistance(I, i, j, i+1, j)-GetColorDistance(A, i, j, i+1, j), 2)
+		// saSum += math.Pow((A[0].At(i, j)-A[0].At(i+1, j))/255, 2)
 		sCount++
 	}
 
 	if j < nCol-1 {
-		// sgSum += GetColorDistance(FG, i, j, i, j+1)/2 + GetColorDistance(BG, i, j, i, j+1)/2
 		saSum += math.Pow(GetColorDistance(I, i, j, i, j+1)-GetColorDistance(A, i, j, i, j+1), 2)
+		// saSum += math.Pow((A[0].At(i, j)-A[0].At(i, j+1))/255, 2)
+		sCount++
 	}
 
 	if sCount > 0 {
@@ -151,86 +152,6 @@ func samplingPDF(states, updatedStates []StateRes, pSum float64) StateRes {
 	return updatedStates[i]
 }
 
-func updateFG(i, j, ch int, I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLog, e, t float64) float64 {
-	eTotalMin := math.MaxFloat64
-	cv := FG[ch].At(i, j)
-
-	states := make([]StateRes, 256)
-	si := 0
-
-	// State space energy calculating
-	for s := 0.0; s < 256; s += 1.0 {
-		states[si].value = s
-		FG[ch].Set(i, j, s)
-
-		states[si].e = getEnergyAt(i, j, I, FG, BG, A, S, nFG, nBG)
-
-		states[si].eTotal = e + states[si].e - E.At(i, j)
-
-		if i > 0 {
-			states[si].eTotal += getEnergyAt(i-1, j, I, FG, BG, A, S, nFG, nBG) - E.At(i-1, j)
-		}
-
-		if j > 0 {
-			states[si].eTotal += getEnergyAt(i, j-1, I, FG, BG, A, S, nFG, nBG) - E.At(i, j-1)
-		}
-
-		// Check for min
-		if states[si].eTotal < eTotalMin {
-			eTotalMin = states[si].eTotal
-		}
-		si++
-	}
-
-	FG[ch].Set(i, j, cv)
-	// fmt.Printf("FG (%v,%v) = %v\n", i, j, FG[ch].At(i, j))
-
-	// Update new Value
-	sTarget := samplingPDF(calProp(states, eTotalMin, t))
-	// fmt.Println(sTarget)
-
-	return sTarget.value
-}
-
-func updateBG(i, j, ch int, I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLog, e, t float64) float64 {
-	eTotalMin := math.MaxFloat64
-	cv := BG[ch].At(i, j)
-
-	states := make([]StateRes, 256)
-	si := 0
-
-	// State space energy calculating
-	for s := 0.0; s < 256; s += 1.0 {
-		states[si].value = s
-		BG[ch].Set(i, j, s)
-
-		states[si].e = getEnergyAt(i, j, I, FG, BG, A, S, nFG, nBG)
-
-		states[si].eTotal = e + states[si].e - E.At(i, j)
-
-		if i > 0 {
-			states[si].eTotal += getEnergyAt(i-1, j, I, FG, BG, A, S, nFG, nBG) - E.At(i-1, j)
-		}
-
-		if j > 0 {
-			states[si].eTotal += getEnergyAt(i, j-1, I, FG, BG, A, S, nFG, nBG) - E.At(i, j-1)
-		}
-
-		// Check for min
-		if states[si].eTotal < eTotalMin {
-			eTotalMin = states[si].eTotal
-		}
-		si++
-	}
-
-	BG[ch].Set(i, j, cv)
-
-	// Update new Value
-	sTarget := samplingPDF(calProp(states, eTotalMin, t))
-
-	return sTarget.value
-}
-
 func updateA(i, j int, I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLog, e, t float64) float64 {
 	eTotalMin := math.MaxFloat64
 	cv := A[0].At(i, j)
@@ -282,16 +203,9 @@ func updateValue(I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLo
 	for i := 0; i < nRow; i++ {
 		for j := 0; j < nCol; j++ {
 			if S.At(i, j) == 0 {
-				// for ch := 0; ch < chs; ch++ {
-				// 	newFG[ch].Set(i, j, updateFG(i, j, ch, I, FG, BG, A, S, E, nFG, nBG, e, t))
-				// 	newBG[ch].Set(i, j, updateBG(i, j, ch, I, FG, BG, A, S, E, nFG, nBG, e, t))
-				// }
-
 				newA[0].Set(i, j, updateA(i, j, I, FG, BG, A, S, E, nFG, nBG, e, t))
 
 			} else {
-				// CloneColorMatPixel(newFG, i, j, FG, i, j)
-				// CloneColorMatPixel(newBG, i, j, BG, i, j)
 				CloneColorMatPixel(newA, i, j, A, i, j)
 			}
 		}
@@ -321,7 +235,7 @@ func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Neighb
 	points := make(plotter.XYs, 0)
 
 	// Gradient descent looping
-	for ; de > eThreshold; i++ {
+	for ; de > eThreshold && i <= loopLimit; i++ {
 		fmt.Printf("%v: E = %v, dE_avg = %v (%v), t = %v\n", i, e, de, eThreshold, t)
 
 		// Save for graph plotting

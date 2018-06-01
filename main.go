@@ -2,17 +2,15 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"gocv.io/x/gocv"
 )
 
-const imgPath = "cat_sm.jpg"
-const scrbPath = "cat_sm_scrb.jpg"
-
 func main() {
 	fmt.Println("Reading input...")
-	img := gocv.IMRead(imgPath, gocv.IMReadColor)
-	scrb := gocv.IMRead(scrbPath, gocv.IMReadGrayScale)
+	img := gocv.IMRead(os.Args[1], gocv.IMReadColor)
+	scrb := gocv.IMRead(os.Args[2], gocv.IMReadGrayScale)
 
 	I := GetNumMat(img)
 
