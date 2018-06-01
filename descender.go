@@ -26,8 +26,6 @@ const captureEach = 5
 const tStartRatio = 0.25
 const tDecline = 0.9
 
-const step = 0.001
-
 // Calculate E at a specific point
 func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]NeighborLog) float64 {
 	nRow, nCol := S.Dims()
@@ -37,17 +35,17 @@ func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Nei
 	sCount, sSum := 0.0, 0.0
 
 	if i < nRow-1 {
-		sSum += GetColorDistance(FG, i, j, i+1, j)/3 + GetColorDistance(BG, i, j, i+1, j)/3 + math.Abs(A[0].At(i, j)-A[0].At(i+1, j))/3
+		sSum += GetColorDistance(FG, i, j, i+1, j)/3 + GetColorDistance(BG, i, j, i+1, j)/3 + math.Pow((A[0].At(i, j)-A[0].At(i+1, j))/256, 2)/3
 		sCount++
 	}
 
 	if j < nCol-1 {
-		sSum += GetColorDistance(FG, i, j, i, j+1)/3 + GetColorDistance(BG, i, j, i, j+1)/3 + math.Abs(A[0].At(i, j)-A[0].At(i, j+1))/3
+		sSum += GetColorDistance(FG, i, j, i, j+1)/3 + GetColorDistance(BG, i, j, i, j+1)/3 + math.Pow((A[0].At(i, j)-A[0].At(i, j+1))/256, 2)/3
 		sCount++
 	}
 
 	if sCount > 0 {
-		e += smWeight * sSum / 256 / sCount
+		e += smWeight * sSum / sCount
 	}
 
 	if S.At(i, j) != 0 {
@@ -55,12 +53,12 @@ func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Nei
 	}
 
 	// NN Pixel distance
-	e += pdWeight * math.Pow(A[0].At(i, j)/256-nFG[i][j].dist/(nFG[i][j].dist+nBG[i][j].dist), 2)
+	e += pdWeight * math.Pow(A[0].At(i, j)/256-nBG[i][j].dist/(nFG[i][j].dist+nBG[i][j].dist), 2)
 
 	// NN Color space distance
 	fgd, bgd := GetColorDistance(I, i, j, nFG[i][j].i, nFG[i][j].j), GetColorDistance(I, i, j, nBG[i][j].i, nBG[i][j].j)
 
-	e += cdWeight * math.Pow(A[0].At(i, j)/256-fgd/(fgd+bgd), 2)
+	e += cdWeight * math.Pow(A[0].At(i, j)/256-bgd/(fgd+bgd), 2)
 
 	// Image error
 	ie := 0.0
@@ -362,7 +360,7 @@ func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Neighb
 	// Write output
 	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-fg.jpg", GetCVMat(FG, gocv.MatChannels3))
 	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-bg.jpg", GetCVMat(BG, gocv.MatChannels3))
-	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-a.jpg", GetCVMat(A, gocv.MatChannels3))
+	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-a.jpg", GetCVMat(A, gocv.MatChannels1))
 
 	// Plot graph
 	plots, err := plot.New()

@@ -17,6 +17,7 @@ type NeighborLog struct {
 // FloatMat -
 type FloatMat [][]float64
 
+// StateRes -
 type StateRes struct {
 	value  float64
 	e      float64

@@ -87,5 +87,5 @@ func GetColorDistance(I ColorMat, ai, aj, bi, bj int) float64 {
 		sum += math.Pow(I[c].At(ai, aj)-I[c].At(bi, bj), 2)
 	}
 
-	return math.Sqrt(sum)
+	return sum / float64(256*chs)
 }
