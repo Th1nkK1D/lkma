@@ -70,11 +70,11 @@ func GetCVMat(mats ColorMat, matType gocv.MatType) gocv.Mat {
 }
 
 // CloneColorMatPixel -
-func CloneColorMatPixel(dst, src ColorMat, i, j int) {
+func CloneColorMatPixel(dst ColorMat, x, y int, src ColorMat, i, j int) {
 	chs := len(src)
 
 	for c := 0; c < chs; c++ {
-		dst[c].Set(i, j, src[c].At(i, j))
+		dst[c].Set(x, y, src[c].At(i, j))
 	}
 }
 
@@ -87,5 +87,5 @@ func GetColorDistance(I ColorMat, ai, aj, bi, bj int) float64 {
 		sum += math.Pow((I[c].At(ai, aj) - I[c].At(bi, bj)), 2)
 	}
 
-	return sum / float64(256*chs)
+	return sum / float64(255*chs)
 }

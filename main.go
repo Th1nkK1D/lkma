@@ -33,6 +33,9 @@ func main() {
 	gocv.IMWrite("out-nfg.jpg", SaveNeighborLog(nFG))
 	gocv.IMWrite("out-nbg.jpg", SaveNeighborLog(nBG))
 
+	fmt.Println("Mimicing neighbor...")
+	MimicNeighbor(I, FG, BG, S, nFG, nBG)
+
 	RunGradientDescent(I, FG, BG, A, S, nFG, nBG)
 
 }
