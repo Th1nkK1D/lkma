@@ -15,11 +15,11 @@ import (
 )
 
 const smWeight = 1
-const pdWeight = 1
-const cdWeight = 1
-const ieWeight = 1
+const pdWeight = 2
+const cdWeight = 2
+const ieWeight = 4
 
-const eThreshold = 10
+const eThreshold = 1
 const captureEach = 200
 
 // const tStartRatio = 0.25
@@ -71,7 +71,7 @@ func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Nei
 
 	e += ieWeight * math.Sqrt(ie) / 256
 
-	return e
+	return e / (smWeight + pdWeight + cdWeight + ieWeight)
 }
 
 // GetInitEnergy - Initialize energy matrix
@@ -150,6 +150,11 @@ func updateValue(I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLo
 				A[0].Set(i, j, x)
 
 				// fmt.Printf("A(%v,%v), %v -> %v\n", i, j, A[0].At(i, j), newA[0].At(i, j))
+			} else {
+				// Copy value
+				CloneColorMatPixel(newFG, FG, i, j)
+				CloneColorMatPixel(newBG, BG, i, j)
+				CloneColorMatPixel(newA, A, i, j)
 			}
 
 		}
@@ -218,7 +223,7 @@ func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Neighb
 	// Write output
 	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-fg.jpg", GetCVMat(FG, gocv.MatChannels3))
 	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-bg.jpg", GetCVMat(BG, gocv.MatChannels3))
-	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-a.jpg", GetCVMat(A, gocv.MatChannels3))
+	gocv.IMWrite("out-gd-"+strconv.Itoa(i)+"-final-a.jpg", GetCVMat(A, gocv.MatChannels1))
 
 	// Plot graph
 	plots, err := plot.New()
@@ -235,7 +240,7 @@ func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Neighb
 		panic(err)
 	}
 
-	if err := plots.Save(8*vg.Inch, 5*vg.Inch, "energy.png"); err != nil {
+	if err := plots.Save(8*vg.Inch, 5*vg.Inch, "out-energy.png"); err != nil {
 		panic(err)
 	}
 }
