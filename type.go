@@ -7,8 +7,8 @@ import (
 // ColorMat -
 type ColorMat []*mat.Dense
 
-// NeighborLog -
-type NeighborLog struct {
+// NeighbourLog -
+type NeighbourLog struct {
 	i    int
 	j    int
 	dist float64

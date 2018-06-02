@@ -12,45 +12,45 @@ func getDist(i, j, x, y int) float64 {
 	return math.Sqrt(math.Pow(float64(i-x), 2) + math.Pow(float64(j-y), 2))
 }
 
-func explore(neighbors [][]NeighborLog, mask *mat.Dense, i, j, si, sj, w, h int, start bool) [][]NeighborLog {
+func explore(neighbours [][]NeighbourLog, mask *mat.Dense, i, j, si, sj, w, h int, start bool) [][]NeighbourLog {
 	dist := getDist(i, j, si, sj)
 
-	if start || (mask.At(i, j) == 0 && (neighbors[i][j].dist == 0 || dist < neighbors[i][j].dist)) {
+	if start || (mask.At(i, j) == 0 && (neighbours[i][j].dist == 0 || dist < neighbours[i][j].dist)) {
 		// Update value
 		if mask.At(i, j) == 0 {
-			neighbors[i][j].i = si
-			neighbors[i][j].j = sj
-			neighbors[i][j].dist = dist
+			neighbours[i][j].i = si
+			neighbours[i][j].j = sj
+			neighbours[i][j].dist = dist
 		}
 
 		// Water flow
 		if i+1 < h {
-			neighbors = explore(neighbors, mask, i+1, j, si, sj, w, h, false)
+			neighbours = explore(neighbours, mask, i+1, j, si, sj, w, h, false)
 		}
 		if j+1 < w {
-			neighbors = explore(neighbors, mask, i, j+1, si, sj, w, h, false)
+			neighbours = explore(neighbours, mask, i, j+1, si, sj, w, h, false)
 		}
 		if i-1 >= 0 {
-			neighbors = explore(neighbors, mask, i-1, j, si, sj, w, h, false)
+			neighbours = explore(neighbours, mask, i-1, j, si, sj, w, h, false)
 		}
 		if j-1 >= 0 {
-			neighbors = explore(neighbors, mask, i, j-1, si, sj, w, h, false)
+			neighbours = explore(neighbours, mask, i, j-1, si, sj, w, h, false)
 		}
 	}
 
-	return neighbors
+	return neighbours
 }
 
-// ExploreNeighbor -
-func ExploreNeighbor(mask *mat.Dense) ([][]NeighborLog, [][]NeighborLog) {
+// ExploreNeighbour -
+func ExploreNeighbour(mask *mat.Dense) ([][]NeighbourLog, [][]NeighbourLog) {
 	nRow, nCol := mask.Dims()
 
-	// Init neighbor logs
-	neighborFG, neighborBG := make([][]NeighborLog, nRow), make([][]NeighborLog, nRow)
+	// Init neighbour logs
+	neighbourFG, neighbourBG := make([][]NeighbourLog, nRow), make([][]NeighbourLog, nRow)
 
-	for n := range neighborFG {
-		neighborFG[n] = make([]NeighborLog, nCol)
-		neighborBG[n] = make([]NeighborLog, nCol)
+	for n := range neighbourFG {
+		neighbourFG[n] = make([]NeighbourLog, nCol)
+		neighbourBG[n] = make([]NeighbourLog, nCol)
 	}
 
 	// Start
@@ -58,42 +58,42 @@ func ExploreNeighbor(mask *mat.Dense) ([][]NeighborLog, [][]NeighborLog) {
 		for j := 0; j < nCol; j++ {
 			if mask.At(i, j) == 1 {
 				// Marked FG
-				neighborFG = explore(neighborFG, mask, i, j, i, j, nCol, nRow, true)
+				neighbourFG = explore(neighbourFG, mask, i, j, i, j, nCol, nRow, true)
 			} else if mask.At(i, j) == -1 {
 				// Marked BG
-				neighborBG = explore(neighborBG, mask, i, j, i, j, nCol, nRow, true)
+				neighbourBG = explore(neighbourBG, mask, i, j, i, j, nCol, nRow, true)
 			}
 		}
 	}
 
-	return neighborFG, neighborBG
+	return neighbourFG, neighbourBG
 }
 
-// MimicNeighbor -
-func MimicNeighbor(I, FG, BG ColorMat, mask *mat.Dense, neighborFG, neighborBG [][]NeighborLog) {
+// MimicNeighbour -
+func MimicNeighbour(I, FG, BG ColorMat, mask *mat.Dense, neighbourFG, neighbourBG [][]NeighbourLog) {
 	nRow, nCol := mask.Dims()
 
 	// Mimic
 	for i := 0; i < nRow; i++ {
 		for j := 0; j < nCol; j++ {
 			if mask.At(i, j) == 0 {
-				CloneColorMatPixel(FG, i, j, I, neighborFG[i][j].i, neighborFG[i][j].j)
-				CloneColorMatPixel(BG, i, j, I, neighborBG[i][j].i, neighborBG[i][j].j)
+				CloneColorMatPixel(FG, i, j, I, neighbourFG[i][j].i, neighbourFG[i][j].j)
+				CloneColorMatPixel(BG, i, j, I, neighbourBG[i][j].i, neighbourBG[i][j].j)
 			}
 		}
 	}
 }
 
-// SaveNeighborLog -
-func SaveNeighborLog(neighbors [][]NeighborLog) gocv.Mat {
-	nRow, nCol := len(neighbors), len(neighbors[0])
+// SaveNeighbourLog -
+func SaveNeighbourLog(neighbours [][]NeighbourLog) gocv.Mat {
+	nRow, nCol := len(neighbours), len(neighbours[0])
 	bytes := make([]byte, nRow*nCol)
 	b := 0
 	max := 0.0
 
 	for i := 0; i < nRow; i++ {
 		for j := 0; j < nCol; j++ {
-			if v := neighbors[i][j].dist; v > max {
+			if v := neighbours[i][j].dist; v > max {
 				max = v
 			}
 		}
@@ -101,7 +101,7 @@ func SaveNeighborLog(neighbors [][]NeighborLog) gocv.Mat {
 
 	for i := 0; i < nRow; i++ {
 		for j := 0; j < nCol; j++ {
-			bytes[b] = byte(neighbors[i][j].dist * 255 / max)
+			bytes[b] = byte(neighbours[i][j].dist * 255 / max)
 			b++
 		}
 	}

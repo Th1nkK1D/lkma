@@ -28,7 +28,7 @@ const tStartRatio = 0.25
 const tDecline = 0.9
 
 // Calculate E at a specific point
-func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]NeighborLog) float64 {
+func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]NeighbourLog) float64 {
 	nRow, nCol := S.Dims()
 	e := 0.0
 
@@ -76,7 +76,7 @@ func getEnergyAt(i, j int, I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]Nei
 }
 
 // GetInitEnergy - Initialize energy matrix
-func getInitEnergy(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]NeighborLog) (*mat.Dense, float64, float64) {
+func getInitEnergy(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]NeighbourLog) (*mat.Dense, float64, float64) {
 	nRow, nCol := I[0].Dims()
 
 	E := mat.NewDense(nRow, nCol, make([]float64, nRow*nCol))
@@ -150,7 +150,7 @@ func samplingPDF(states, updatedStates []StateRes, pSum float64) StateRes {
 	return updatedStates[i]
 }
 
-func updateA(i, j int, I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLog, e, t float64) float64 {
+func updateA(i, j int, I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighbourLog, e, t float64) float64 {
 	eTotalMin := math.MaxFloat64
 	cv := A[0].At(i, j)
 
@@ -189,7 +189,7 @@ func updateA(i, j int, I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]Neig
 	return sTarget.value
 }
 
-func updateValue(I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLog, e, t float64) (ColorMat, *mat.Dense, float64) {
+func updateValue(I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighbourLog, e, t float64) (ColorMat, *mat.Dense, float64) {
 	nRow, nCol := I[0].Dims()
 	newA := NewColorMat(nRow, nCol, 1, GetBlankFloats(nRow, nCol, 1))
 	newE := mat.NewDense(nRow, nCol, make([]float64, nRow*nCol))
@@ -220,7 +220,7 @@ func updateValue(I, FG, BG, A ColorMat, S, E *mat.Dense, nFG, nBG [][]NeighborLo
 }
 
 // RunGradientDescent -
-func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]NeighborLog) {
+func RunGradientDescent(I, FG, BG, A ColorMat, S *mat.Dense, nFG, nBG [][]NeighbourLog) {
 	E, e, t := getInitEnergy(I, FG, BG, A, S, nFG, nBG)
 
 	le, l2e := 0.0, 0.0

@@ -24,16 +24,16 @@ func main() {
 	gocv.IMWrite("out-fg.jpg", GetCVMat(FG, gocv.MatChannels3))
 	gocv.IMWrite("out-bg.jpg", GetCVMat(BG, gocv.MatChannels3))
 
-	fmt.Println("Exploring neighbor...")
+	fmt.Println("Exploring neighbour...")
 
-	nFG, nBG := ExploreNeighbor(S)
+	nFG, nBG := ExploreNeighbour(S)
 
-	gocv.IMWrite("out-nfg.jpg", SaveNeighborLog(nFG))
-	gocv.IMWrite("out-nbg.jpg", SaveNeighborLog(nBG))
+	gocv.IMWrite("out-nfg.jpg", SaveNeighbourLog(nFG))
+	gocv.IMWrite("out-nbg.jpg", SaveNeighbourLog(nBG))
 
-	fmt.Println("Mimicing neighbor...")
+	fmt.Println("Mimicing neighbour...")
 
-	MimicNeighbor(I, FG, BG, S, nFG, nBG)
+	MimicNeighbour(I, FG, BG, S, nFG, nBG)
 
 	gocv.IMWrite("out-fg-mimic.jpg", GetCVMat(FG, gocv.MatChannels3))
 	gocv.IMWrite("out-bg-mimic.jpg", GetCVMat(BG, gocv.MatChannels3))
