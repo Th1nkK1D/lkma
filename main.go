@@ -31,6 +31,8 @@ func main() {
 	gocv.IMWrite("out-nfg.jpg", SaveNeighborLog(nFG))
 	gocv.IMWrite("out-nbg.jpg", SaveNeighborLog(nBG))
 
+	fmt.Println("Mimicing neighbor...")
+
 	MimicNeighbor(I, FG, BG, S, nFG, nBG)
 
 	gocv.IMWrite("out-fg-mimic.jpg", GetCVMat(FG, gocv.MatChannels3))
